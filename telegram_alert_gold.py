@@ -169,12 +169,8 @@ def send_telegram(bot_token: str, chat_id: str, message: str) -> bool:
 
 
 def main():
-    bot_token = os.environ.get("BOT_TOKEN", "").strip()
-    chat_id = os.environ.get("CHAT_ID", "").strip()
-
-    if not bot_token or not chat_id:
-        print("[ERROR] BOT_TOKEN and CHAT_ID environment variables are required.", file=sys.stderr)
-        sys.exit(1)
+    bot_token = os.environ.get("BOT_TOKEN", "8639655584:AAGKmEwGKEufCYwItf3v4c7G_P5acacAwQA").strip()
+    chat_id = os.environ.get("CHAT_ID", "8842938928").strip()
 
     print("[INFO] Fetching 4h signal...")
     sig_4h = get_signal("4h")
@@ -193,8 +189,41 @@ def main():
 
     print(f"[INFO] Actionable signals detected: {actionable_signals} — sending Telegram alert...")
     message = build_message(sig_4h, sig_1h)
-    success = send_telegram(bot_token, chat_id, message)
-    sys.exit(0 if success else 1)
+    send_telegram(bot_token, chat_id, message)
+
+    # Futures LONG/SHORT — only on STRONG signal (strength >= 4)
+    for sig, tf_label in [(sig_4h, "4H"), (sig_1h, "1H")]:
+        strength = sig.get("strength", 0)
+        signal = sig.get("signal")
+        price = sig.get("price", 0)
+        if signal == "BUY" and strength >= 4:
+            atr = price * 0.015
+            sl = round(price - 1.5 * atr, 2)
+            tp = round(price + 3.0 * atr, 2)
+            text = (
+                f"🟢 <b>LONG GOLD/USD [{tf_label}]</b>\n"
+                f"Entry: <b>${price:,.2f}</b>\n"
+                f"SL: ${sl:,.2f} (-1.5×ATR)\n"
+                f"TP: ${tp:,.2f} (+3×ATR)\n"
+                f"RR: 1:2 | Strength: {strength}/5"
+            )
+            send_telegram(bot_token, chat_id, text)
+            print(f"[INFO] Futures LONG alert sent [{tf_label}]")
+        elif signal == "SELL" and strength >= 4:
+            atr = price * 0.015
+            sl = round(price + 1.5 * atr, 2)
+            tp = round(price - 3.0 * atr, 2)
+            text = (
+                f"🔴 <b>SHORT GOLD/USD [{tf_label}]</b>\n"
+                f"Entry: <b>${price:,.2f}</b>\n"
+                f"SL: ${sl:,.2f} (+1.5×ATR)\n"
+                f"TP: ${tp:,.2f} (-3×ATR)\n"
+                f"RR: 1:2 | Strength: {strength}/5"
+            )
+            send_telegram(bot_token, chat_id, text)
+            print(f"[INFO] Futures SHORT alert sent [{tf_label}]")
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":
