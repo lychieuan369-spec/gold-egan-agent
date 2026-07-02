@@ -2,7 +2,7 @@ name: Gold Price Alert
 
 on:
   schedule:
-    - cron: '0 * * * *'  # every hour UTC
+    - cron: '0 */4 * * *'  # every 4 hours UTC
   workflow_dispatch:
 
 jobs:

@@ -6,6 +6,7 @@ Supports --mode json (clean JSON only) and --mode text (human-readable).
 """
 
 import argparse
+import io
 import json
 import sys
 import warnings
@@ -14,6 +15,12 @@ import numpy as np
 import pandas as pd
 
 warnings.filterwarnings("ignore")
+
+# Force UTF-8 output on Windows (avoids UnicodeEncodeError on emoji in console)
+if not isinstance(sys.stdout, io.TextIOWrapper) or sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if not isinstance(sys.stderr, io.TextIOWrapper) or sys.stderr.encoding.lower() != "utf-8":
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 
 def fetch_gold_data(timeframe: str, n_candles: int = 200) -> pd.DataFrame:
