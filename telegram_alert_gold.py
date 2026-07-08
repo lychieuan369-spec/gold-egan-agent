@@ -279,8 +279,11 @@ def main():
                 send_telegram(bot_token, chat_id, text)
                 print(f"[INFO] Futures SHORT alert sent [{tf_label}]")
 
-    if had_error:
+    both_failed = sig_4h.get("signal") == "ERROR" and sig_1h.get("signal") == "ERROR"
+    if both_failed:
         sys.exit(1)
+    if had_error:
+        print("[WARN] One timeframe errored but the other succeeded — not failing the run.")
     sys.exit(0)
 
 

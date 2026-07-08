@@ -9,6 +9,7 @@ import argparse
 import io
 import json
 import sys
+import time
 import warnings
 
 import numpy as np
@@ -36,18 +37,26 @@ def fetch_gold_data(timeframe: str, n_candles: int = 200) -> pd.DataFrame:
 
     ticker = "GC=F"
 
+    def _download_with_retry(period, interval, label, retries=3, delays=(3, 6)):
+        last_err = None
+        for attempt in range(retries):
+            try:
+                df = yf.download(ticker, period=period, interval=interval,
+                                 progress=False, auto_adjust=True)
+                if df is not None and not df.empty:
+                    return df
+                last_err = f"No {label} data returned from yfinance for GC=F"
+            except Exception as e:
+                last_err = f"yfinance download failed ({label}): {e}"
+            if attempt < retries - 1:
+                time.sleep(delays[min(attempt, len(delays) - 1)])
+        raise RuntimeError(last_err)
+
     if timeframe == "1h":
         # yfinance 1h data, up to 60d
         period = "60d"
         interval = "1h"
-        try:
-            df = yf.download(ticker, period=period, interval=interval,
-                             progress=False, auto_adjust=True)
-        except Exception as e:
-            raise RuntimeError(f"yfinance download failed (1h): {e}")
-
-        if df is None or df.empty:
-            raise RuntimeError("No 1h data returned from yfinance for GC=F")
+        df = _download_with_retry(period, interval, "1h")
 
         df = _normalize_columns(df)
         df = df.dropna(subset=["close"])
@@ -59,14 +68,7 @@ def fetch_gold_data(timeframe: str, n_candles: int = 200) -> pd.DataFrame:
         # Fetch 1h over 120d, then resample to 4h
         period = "120d"
         interval = "1h"
-        try:
-            df = yf.download(ticker, period=period, interval=interval,
-                             progress=False, auto_adjust=True)
-        except Exception as e:
-            raise RuntimeError(f"yfinance download failed (4h resample): {e}")
-
-        if df is None or df.empty:
-            raise RuntimeError("No 1h data returned from yfinance for GC=F (4h resample)")
+        df = _download_with_retry(period, interval, "1h (4h resample)")
 
         df = _normalize_columns(df)
         df = df.dropna(subset=["close"])
